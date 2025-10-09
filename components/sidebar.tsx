@@ -1,13 +1,18 @@
 "use client"
 
 import { useState, useEffect, useRef } from "react"
-import { X, Shield, Mic, Send, Sparkles, FileText, AlertTriangle } from "lucide-react"
+import { X, Shield, Mic, Send, Wand2, FileText, AlertTriangle, Settings } from "lucide-react"
 import { Button } from "@/components/ui/button"
 import { Textarea } from "@/components/ui/textarea"
+import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger } from "@/components/ui/dialog"
+import { Label } from "@/components/ui/label"
+import { Switch } from "@/components/ui/switch"
+import { useToast } from "@/hooks/use-toast"
 
 interface SidebarProps {
   onClose: () => void
   initialAction: string | null
+  selectedText: string
 }
 
 const mockResponses = {
@@ -19,12 +24,23 @@ const mockResponses = {
     "Key risks to be aware of: 1) Limited liability clause means the vendor isn't responsible for business losses. 2) Automatic termination if you breach any terms. 3) No right to modify or create derivative works. 4) Non-transferable license restricts business flexibility. 5) Vendor retains all IP rights, limiting your control.",
 }
 
-export function Sidebar({ onClose, initialAction }: SidebarProps) {
+export function Sidebar({ onClose, initialAction, selectedText }: SidebarProps) {
   const [isLoading, setIsLoading] = useState(false)
   const [response, setResponse] = useState("")
   const [input, setInput] = useState("")
   const [isRecording, setIsRecording] = useState(false)
+  const [showContextPopup, setShowContextPopup] = useState(true)
+  const [showToastNotif, setShowToastNotif] = useState(true)
+  const [settingsOpen, setSettingsOpen] = useState(false)
   const textareaRef = useRef<HTMLTextAreaElement>(null)
+  const { toast } = useToast()
+
+  useEffect(() => {
+    if (typeof window !== "undefined") {
+      setShowContextPopup(localStorage.getItem("lg.context.disabled") !== "true")
+      setShowToastNotif(Number(localStorage.getItem("lg.toast.snooze") || 0) < Date.now())
+    }
+  }, [])
 
   useEffect(() => {
     if (initialAction) {
@@ -36,14 +52,13 @@ export function Sidebar({ onClose, initialAction }: SidebarProps) {
     setIsLoading(true)
     setResponse("")
 
-    // Simulate loading
     setTimeout(() => {
       setIsLoading(false)
       setResponse(
         mockResponses[action as keyof typeof mockResponses] ||
           "Analysis complete. The selected text contains important legal terms that may affect your rights and obligations.",
       )
-    }, 1000)
+    }, 900)
   }
 
   const handleSend = () => {
@@ -52,19 +67,53 @@ export function Sidebar({ onClose, initialAction }: SidebarProps) {
     setIsLoading(true)
     setResponse("")
 
-    // Simulate AI response
     setTimeout(() => {
       setIsLoading(false)
       setResponse(
         `Based on your question "${input}", here's what you need to know: This clause is designed to protect the software vendor while limiting your rights as a user. It's important to understand these terms before agreeing to them.`,
       )
       setInput("")
-    }, 1000)
+    }, 900)
   }
 
   const toggleRecording = () => {
     setIsRecording(!isRecording)
-    // In a real implementation, this would use the Web Speech API
+  }
+
+  const handleContextPopupToggle = (checked: boolean) => {
+    setShowContextPopup(checked)
+    if (typeof window !== "undefined") {
+      if (checked) {
+        localStorage.removeItem("lg.context.disabled")
+      } else {
+        localStorage.setItem("lg.context.disabled", "true")
+      }
+    }
+  }
+
+  const handleToastToggle = (checked: boolean) => {
+    setShowToastNotif(checked)
+    if (typeof window !== "undefined") {
+      if (checked) {
+        localStorage.removeItem("lg.toast.snooze")
+      } else {
+        localStorage.setItem("lg.toast.snooze", String(Date.now() + 365 * 24 * 3600 * 1000))
+      }
+    }
+  }
+
+  const handleResetTips = () => {
+    if (typeof window !== "undefined") {
+      localStorage.removeItem("lg.context.disabled")
+      localStorage.removeItem("lg.toast.snooze")
+      setShowContextPopup(true)
+      setShowToastNotif(true)
+    }
+    toast({
+      description: "All tips have been reset.",
+      duration: 2000,
+    })
+    setSettingsOpen(false)
   }
 
   return (
@@ -73,7 +122,7 @@ export function Sidebar({ onClose, initialAction }: SidebarProps) {
       <div className="fixed inset-0 bg-black/20 z-40 animate-fade-in" onClick={onClose} />
 
       {/* Sidebar */}
-      <div className="fixed right-0 top-0 bottom-0 w-[460px] bg-card border-l border-border z-50 flex flex-col animate-slide-in-right shadow-2xl">
+      <div className="fixed right-0 top-0 bottom-0 w-[448px] bg-card border-l border-border z-50 flex flex-col animate-slide-in-right shadow-[0_0_50px_rgba(20,24,40,0.15)]">
         {/* Header */}
         <div className="flex items-center justify-between px-6 py-4 border-b border-border">
           <div className="flex items-center gap-3">
@@ -100,6 +149,35 @@ export function Sidebar({ onClose, initialAction }: SidebarProps) {
             <Button size="sm" className="text-sm bg-primary text-primary-foreground hover:bg-primary/90 rounded-lg">
               Sign up
             </Button>
+            <Dialog open={settingsOpen} onOpenChange={setSettingsOpen}>
+              <DialogTrigger asChild>
+                <button className="ml-2 text-muted-foreground hover:text-foreground transition-colors">
+                  <Settings className="w-4 h-4" />
+                </button>
+              </DialogTrigger>
+              <DialogContent>
+                <DialogHeader>
+                  <DialogTitle>Settings</DialogTitle>
+                </DialogHeader>
+                <div className="space-y-6 py-4">
+                  <div className="flex items-center justify-between">
+                    <Label htmlFor="context-popup" className="text-sm">
+                      Show contextual pop-up when I highlight text
+                    </Label>
+                    <Switch id="context-popup" checked={showContextPopup} onCheckedChange={handleContextPopupToggle} />
+                  </div>
+                  <div className="flex items-center justify-between">
+                    <Label htmlFor="toast-notif" className="text-sm">
+                      Show detection toast on new pages
+                    </Label>
+                    <Switch id="toast-notif" checked={showToastNotif} onCheckedChange={handleToastToggle} />
+                  </div>
+                  <Button onClick={handleResetTips} variant="outline" className="w-full bg-transparent">
+                    Reset all tips
+                  </Button>
+                </div>
+              </DialogContent>
+            </Dialog>
             <button onClick={onClose} className="ml-2 text-muted-foreground hover:text-foreground transition-colors">
               <X className="w-5 h-5" />
             </button>
@@ -111,13 +189,13 @@ export function Sidebar({ onClose, initialAction }: SidebarProps) {
           {/* Detected Text */}
           <div>
             <h3 className="text-sm font-medium text-foreground mb-3">Detected Text</h3>
-            <div className="bg-muted rounded-xl p-4 text-sm text-foreground/80 leading-relaxed">
-              Subject to the terms and conditions of this Agreement, Licensor hereby grants to Licensee a non-exclusive,
-              non-transferable, limited license to use the Software solely for Licensee's internal business purposes...
+            <div className="bg-primary/5 border border-primary/10 rounded-2xl p-4 text-sm text-foreground/80 leading-relaxed font-mono">
+              {selectedText ||
+                "Subject to the terms and conditions of this Agreement, Licensor hereby grants to Licensee a non-exclusive, non-transferable, limited license to use the Software solely for Licensee's internal business purposes..."}
             </div>
           </div>
 
-          {/* Quick Prompts */}
+          {/* Quick Actions */}
           <div>
             <h3 className="text-sm font-medium text-foreground mb-3">Quick Actions</h3>
             <div className="flex flex-wrap gap-2">
@@ -125,16 +203,16 @@ export function Sidebar({ onClose, initialAction }: SidebarProps) {
                 onClick={() => handleQuickPrompt("summarize")}
                 variant="outline"
                 size="sm"
-                className="gap-2 rounded-lg"
+                className="gap-2 rounded-lg hover:bg-accent active:scale-[0.98] transition-transform"
               >
-                <Sparkles className="w-4 h-4" />
+                <Wand2 className="w-4 h-4" />
                 Summary
               </Button>
               <Button
                 onClick={() => handleQuickPrompt("explain")}
                 variant="outline"
                 size="sm"
-                className="gap-2 rounded-lg"
+                className="gap-2 rounded-lg hover:bg-accent active:scale-[0.98] transition-transform"
               >
                 <FileText className="w-4 h-4" />
                 Explanation
@@ -143,7 +221,7 @@ export function Sidebar({ onClose, initialAction }: SidebarProps) {
                 onClick={() => handleQuickPrompt("risks")}
                 variant="outline"
                 size="sm"
-                className="gap-2 rounded-lg"
+                className="gap-2 rounded-lg hover:bg-accent active:scale-[0.98] transition-transform"
               >
                 <AlertTriangle className="w-4 h-4" />
                 Key Risks
@@ -151,11 +229,11 @@ export function Sidebar({ onClose, initialAction }: SidebarProps) {
             </div>
           </div>
 
-          {/* Response */}
+          {/* Analysis */}
           {(isLoading || response) && (
             <div>
               <h3 className="text-sm font-medium text-foreground mb-3">Analysis</h3>
-              <div className="bg-accent rounded-xl p-4">
+              <div className="border border-border rounded-2xl p-4 bg-card">
                 {isLoading ? (
                   <div className="space-y-2">
                     <div className="h-4 bg-muted rounded animate-pulse" />
@@ -170,8 +248,8 @@ export function Sidebar({ onClose, initialAction }: SidebarProps) {
           )}
         </div>
 
-        {/* Footer / Composer */}
-        <div className="border-t border-border px-6 py-4 space-y-3">
+        {/* Composer (sticky footer) */}
+        <div className="border-t border-border px-6 py-4 space-y-3 bg-card">
           <div className="flex items-start gap-2">
             <div className="flex-1">
               <Textarea
@@ -184,8 +262,8 @@ export function Sidebar({ onClose, initialAction }: SidebarProps) {
                     handleSend()
                   }
                 }}
-                placeholder="Highlight a passage and ask a question..."
-                className="min-h-[80px] resize-none rounded-xl"
+                placeholder="Highlight a passage and ask a question…"
+                className="min-h-[80px] resize-none rounded-2xl"
               />
             </div>
           </div>
@@ -195,16 +273,18 @@ export function Sidebar({ onClose, initialAction }: SidebarProps) {
               <Button
                 variant="outline"
                 size="sm"
-                className="rounded-lg text-xs bg-transparent"
-                onClick={() => setInput("Can you explain this in simpler terms?")}
+                className="rounded-lg text-xs bg-transparent hover:bg-accent active:scale-[0.98] transition-transform"
+                onClick={() => setInput(selectedText ? `Explain: ${selectedText}` : "Can you explain this?")}
               >
                 Explain
               </Button>
               <Button
                 variant="outline"
                 size="sm"
-                className="rounded-lg text-xs bg-transparent"
-                onClick={() => setInput("Explain this like I'm 3 years old")}
+                className="rounded-lg text-xs bg-transparent hover:bg-accent active:scale-[0.98] transition-transform"
+                onClick={() =>
+                  setInput(selectedText ? `Explain like I'm 3: ${selectedText}` : "Explain this like I'm 3 years old")
+                }
               >
                 Explain like I'm 3
               </Button>
@@ -213,28 +293,30 @@ export function Sidebar({ onClose, initialAction }: SidebarProps) {
             <div className="flex items-center gap-2">
               <button
                 onClick={toggleRecording}
-                className={`p-2 rounded-lg transition-colors ${
+                className={`relative p-2 rounded-lg transition-all active:scale-[0.98] ${
                   isRecording
-                    ? "bg-destructive text-destructive-foreground"
+                    ? "bg-destructive text-destructive-foreground shadow-[0_0_20px_rgba(239,68,68,0.5)]"
                     : "bg-muted text-muted-foreground hover:text-foreground"
                 }`}
               >
                 <Mic className="w-4 h-4" />
                 {isRecording && (
-                  <span className="absolute top-1 right-1 w-2 h-2 bg-destructive rounded-full animate-pulse-glow" />
+                  <span className="absolute -top-1 -right-1 w-3 h-3 bg-destructive rounded-full animate-pulse-glow" />
                 )}
               </button>
               <Button
                 onClick={handleSend}
                 size="sm"
                 disabled={!input.trim()}
-                className="gap-2 bg-primary text-primary-foreground hover:bg-primary/90 rounded-lg"
+                className="gap-2 bg-primary text-primary-foreground hover:bg-primary/90 rounded-lg active:scale-[0.98] transition-transform"
               >
                 <Send className="w-4 h-4" />
                 Send
               </Button>
             </div>
           </div>
+
+          <p className="text-xs text-muted-foreground text-center">Demo only. No data is stored.</p>
         </div>
       </div>
     </>

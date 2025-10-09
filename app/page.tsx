@@ -4,6 +4,24 @@ import { useState, useEffect } from "react"
 import { Toast } from "@/components/toast"
 import { ContextualPopup } from "@/components/contextual-popup"
 import { Sidebar } from "@/components/sidebar"
+import { useToast } from "@/hooks/use-toast"
+
+const snoozeToast = (hours = 24) => {
+  if (typeof window !== "undefined") {
+    localStorage.setItem("lg.toast.snooze", String(Date.now() + hours * 3600 * 1000))
+  }
+}
+
+const canShowToast = () => {
+  if (typeof window === "undefined") return false
+  const snoozeUntil = Number(localStorage.getItem("lg.toast.snooze") || 0)
+  return snoozeUntil < Date.now()
+}
+
+const isContextDisabled = () => {
+  if (typeof window === "undefined") return false
+  return localStorage.getItem("lg.context.disabled") === "true"
+}
 
 export default function LegalGuardDemo() {
   const [showToast, setShowToast] = useState(false)
@@ -11,17 +29,19 @@ export default function LegalGuardDemo() {
   const [showSidebar, setShowSidebar] = useState(false)
   const [popupPosition, setPopupPosition] = useState({ x: 0, y: 0 })
   const [selectedAction, setSelectedAction] = useState<string | null>(null)
+  const [selectedText, setSelectedText] = useState("")
+  const { toast } = useToast()
 
-  // Show toast after 2 seconds
   useEffect(() => {
     const timer = setTimeout(() => {
-      setShowToast(true)
+      if (canShowToast()) {
+        setShowToast(true)
+      }
     }, 2000)
 
     return () => clearTimeout(timer)
   }, [])
 
-  // Auto-hide toast after 8 seconds
   useEffect(() => {
     if (showToast) {
       const timer = setTimeout(() => {
@@ -32,9 +52,10 @@ export default function LegalGuardDemo() {
     }
   }, [showToast])
 
-  // Simulate text selection on the legal paragraph
   useEffect(() => {
     const handleSelection = () => {
+      if (isContextDisabled()) return
+
       const selection = window.getSelection()
       if (selection && selection.toString().length > 10) {
         const range = selection.getRangeAt(0)
@@ -43,6 +64,7 @@ export default function LegalGuardDemo() {
           x: rect.left + rect.width / 2,
           y: rect.bottom + window.scrollY + 10,
         })
+        setSelectedText(selection.toString())
         setShowPopup(true)
       }
     }
@@ -56,6 +78,27 @@ export default function LegalGuardDemo() {
     setShowSidebar(true)
     setShowToast(false)
     setShowPopup(false)
+  }
+
+  const handleToastDismiss = () => {
+    snoozeToast(24)
+    setShowToast(false)
+  }
+
+  const handleToastOpen = () => {
+    snoozeToast(24)
+    handleOpenSidebar()
+  }
+
+  const handleDisableContext = () => {
+    if (typeof window !== "undefined") {
+      localStorage.setItem("lg.context.disabled", "true")
+    }
+    setShowPopup(false)
+    toast({
+      description: "Contextual pop-up disabled. You can re-enable it in Settings.",
+      duration: 3000,
+    })
   }
 
   return (
@@ -124,15 +167,22 @@ export default function LegalGuardDemo() {
       </div>
 
       {/* Toast Notification */}
-      {showToast && <Toast onClose={() => setShowToast(false)} onOpen={handleOpenSidebar} />}
+      {showToast && <Toast onClose={handleToastDismiss} onOpen={handleToastOpen} />}
 
       {/* Contextual Popup */}
       {showPopup && (
-        <ContextualPopup position={popupPosition} onAction={handleOpenSidebar} onClose={() => setShowPopup(false)} />
+        <ContextualPopup
+          position={popupPosition}
+          onAction={handleOpenSidebar}
+          onClose={() => setShowPopup(false)}
+          onDisable={handleDisableContext}
+        />
       )}
 
       {/* Sidebar */}
-      {showSidebar && <Sidebar onClose={() => setShowSidebar(false)} initialAction={selectedAction} />}
+      {showSidebar && (
+        <Sidebar onClose={() => setShowSidebar(false)} initialAction={selectedAction} selectedText={selectedText} />
+      )}
     </div>
   )
 }
