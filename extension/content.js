@@ -121,3 +121,90 @@ if (!window.__legalGuardianInjected) {
     setTimeout(init, 500)
   }
 }
+// monitor sidepanel's message
+chrome.runtime.onMessage.addListener((request, sender, sendResponse) => {
+  if (request.action === 'highlightRisks') {
+    const matches = highlightRisksOnPage()
+    sendResponse({ count: matches.length })
+    return true
+  }
+
+  if (request.action === 'clearHighlights') {
+    clearHighlightsOnPage()
+    sendResponse({ success: true })
+    return true
+  }
+
+  if (request.action === 'navigateToMatch') {
+    navigateToHighlight(request.index)
+    sendResponse({ success: true })
+    return true
+  }
+})
+
+// highlight key risk on page
+function highlightRisksOnPage() {
+  const riskKeywords = [
+    'cookie', 'tracking', 'analytics', 'third party', 'share', 
+    'disclose', 'sell', 'transfer', 'train', 'machine learning'
+  ]
+
+  const contentElements = document.querySelectorAll('p, div, span')
+  const matches = []
+
+  contentElements.forEach((element, elemIndex) => {
+    let html = element.innerHTML
+    let matchCount = 0
+
+    riskKeywords.forEach(keyword => {
+      const regex = new RegExp(`\\b(${keyword})\\w*\\b`, 'gi')
+      html = html.replace(regex, (match) => {
+        matches.push({ element, index: matchCount })
+        matchCount++
+        return `<mark class="lg-risk-highlight" data-match-index="${matches.length - 1}">${match}</mark>`
+      })
+    })
+
+    if (matchCount > 0) {
+      element.innerHTML = html
+    }
+  })
+
+  // roll to the first highlight
+  if (matches.length > 0) {
+    const first = document.querySelector('[data-match-index="0"]')
+    if (first) {
+      first.scrollIntoView({ behavior: 'smooth', block: 'center' })
+      first.classList.add('lg-risk-highlight-focused')
+    }
+  }
+
+  return matches
+}
+
+// clear highlight
+function clearHighlightsOnPage() {
+  const highlights = document.querySelectorAll('.lg-risk-highlight')
+  highlights.forEach(highlight => {
+    const parent = highlight.parentNode
+    if (parent) {
+      parent.replaceChild(document.createTextNode(highlight.textContent), highlight)
+      parent.normalize()
+    }
+  })
+}
+
+// navigate to highlight
+function navigateToHighlight(index) {
+  // remove highlight
+  document.querySelectorAll('.lg-risk-highlight-focused').forEach(el => {
+    el.classList.remove('lg-risk-highlight-focused')
+  })
+
+  // focus on new hightlight
+  const target = document.querySelector(`[data-match-index="${index}"]`)
+  if (target) {
+    target.scrollIntoView({ behavior: 'smooth', block: 'center' })
+    target.classList.add('lg-risk-highlight-focused')
+  }
+}

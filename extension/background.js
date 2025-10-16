@@ -70,3 +70,22 @@ function detectDocumentType(content) {
   if (lower.includes('privacy policy') || lower.includes('personal data')) return 'Privacy'
   return 'Other'
 }
+// extension/background.js
+
+
+// click button and open side panel
+chrome.action.onClicked.addListener((tab) => {
+  chrome.sidePanel.open({ windowId: tab.windowId })
+})
+
+// or automatically open when detect law rules
+chrome.runtime.onMessage.addListener((request, sender, sendResponse) => {
+  // 
+
+  if (request.action === 'openSidePanel') {
+    chrome.sidePanel.open({ windowId: sender.tab.windowId })
+    sendResponse({ success: true })
+  }
+})
+```
+
