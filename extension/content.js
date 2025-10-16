@@ -83,9 +83,23 @@ if (!window.__legalGuardianInjected) {
       alert('Risk highlighting feature coming soon!')
     })
     
-    document.getElementById('lg-analysis-btn').addEventListener('click', () => {
-      chrome.runtime.sendMessage({ action: 'openFullAnalysis', data: analysisData })
-    })
+   document.getElementById('lg-analysis-btn').addEventListener('click', () => {
+  // 打开 side panel 并显示完整分析
+  chrome.runtime.sendMessage({ 
+    action: 'openSidePanel'
+  }, () => {
+    // side panel 打开后，发送分析数据
+    setTimeout(() => {
+      chrome.runtime.sendMessage({
+        action: 'analysisComplete',
+        data: analysisData
+      })
+    }, 300)
+  })
+  
+  // 关闭 toast
+  container.remove()
+})
   }
 
   function getToastMessage(docType) {

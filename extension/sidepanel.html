@@ -276,6 +276,83 @@
       display: flex;
       gap: 8px;
     }
+
+    /* Full Analysis View */
+    #fullAnalysisView {
+      display: none;
+    }
+
+    #fullAnalysisView.active {
+      display: block;
+    }
+
+    .back-button {
+      display: flex;
+      align-items: center;
+      gap: 8px;
+      margin-bottom: 20px;
+      padding: 8px 12px;
+      background: #f9fafb;
+      border: 1px solid #e5e7eb;
+      border-radius: 10px;
+      cursor: pointer;
+      transition: all 0.2s;
+      font-size: 14px;
+      color: #1a1a1a;
+    }
+
+    .back-button:hover {
+      background: #f3f4f6;
+    }
+
+    .analysis-content {
+      background: #f9fafb;
+      border: 1px solid #e5e7eb;
+      border-radius: 16px;
+      padding: 20px;
+    }
+
+    .analysis-section {
+      margin-bottom: 24px;
+    }
+
+    .analysis-section:last-child {
+      margin-bottom: 0;
+    }
+
+    .analysis-label {
+      font-size: 12px;
+      font-weight: 600;
+      color: #6b7280;
+      text-transform: uppercase;
+      letter-spacing: 0.5px;
+      margin-bottom: 8px;
+    }
+
+    .analysis-value {
+      font-size: 14px;
+      color: #1a1a1a;
+      line-height: 1.6;
+    }
+
+    .analysis-pre {
+      background: white;
+      border: 1px solid #e5e7eb;
+      border-radius: 8px;
+      padding: 16px;
+      overflow-x: auto;
+      white-space: pre-wrap;
+      word-wrap: break-word;
+      font-family: 'Monaco', 'Menlo', monospace;
+      font-size: 12px;
+      line-height: 1.6;
+      color: #374151;
+    }
+
+    .view-full-btn {
+      margin-top: 12px;
+      width: 100%;
+    }
   </style>
 </head>
 <body>
@@ -287,14 +364,17 @@
     </div>
   </div>
 
-  <!-- Content -->
-  <div class="content">
+  <!-- Main Content View -->
+  <div id="mainView" class="content">
     <!-- Data Summary -->
     <div class="section">
       <div class="section-title">Data Summary</div>
       <div class="card">
         <p id="data-summary">Loading document analysis...</p>
       </div>
+      <button class="btn btn-primary btn-small view-full-btn" id="viewFullBtn">
+        📋 View Full Analysis
+      </button>
       <p style="font-size: 12px; color: #9ca3af; margin-top: 8px;">
         Detected data-related clauses in this document.
       </p>
@@ -310,7 +390,7 @@
       </div>
       
       <div class="card">
-        <div class="risk-list">
+        <div class="risk-list" id="risk-list">
           <div class="risk-item">
             <span class="risk-icon">🧭</span>
             <div class="risk-content">
@@ -369,6 +449,21 @@
       <p style="font-size: 12px; color: #9ca3af; text-align: center; margin-top: 8px; font-style: italic;">
         All your questions stay local — we never send them anywhere.
       </p>
+    </div>
+  </div>
+
+  <!-- Full Analysis View -->
+  <div id="fullAnalysisView" class="content">
+    <button class="back-button" id="backButton">
+      ← Back to Summary
+    </button>
+    
+    <div class="section">
+      <div class="section-title">📋 Complete Analysis Report</div>
+      
+      <div class="analysis-content" id="fullAnalysisContent">
+        <!-- Content will be populated by JavaScript -->
+      </div>
     </div>
   </div>
 
